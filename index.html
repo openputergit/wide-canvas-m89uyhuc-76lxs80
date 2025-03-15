@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Racing Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .game-container {
+            background: #333;
+            position: relative;
+            overflow: hidden;
+            border-radius: 10px;
+        }
+        .car {
+            width: 50px;
+            height: 80px;
+            position: absolute;
+            bottom: 10px;
+            transition: left 0.1s;
+            z-index: 10;
+        }
+        .obstacle {
+            width: 50px;
+            height: 80px;
+            position: absolute;
+            background-color: #ff4444;
+            border-radius: 5px;
+        }
+        .road-line {
+            position: absolute;
+            width: 10px;
+            height: 60px;
+            background: white;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        @media (max-width: 768px) {
+            .game-container {
+                height: 70vh !important;
+            }
+            .control-btn {
+                font-size: 2rem !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="max-w-2xl w-full">
+        <div class="text-center mb-4">
+            <h1 class="text-4xl font-bold text-white mb-2">Car Racing</h1>
+            <p class="text-gray-300 mb-4">Score: <span id="score">0</span></p>
+        </div>
+
+        <div id="gameContainer" class="game-container w-full h-[600px]">
+            <div id="player" class="car bg-blue-500 rounded"></div>
+        </div>
+
+        <div class="mt-4 flex justify-center gap-4">
+            <button id="leftBtn" class="control-btn text-4xl text-white hover:text-blue-400 transition">
+                <i class="bi bi-arrow-left-circle-fill"></i>
+            </button>
+            <button id="rightBtn" class="control-btn text-4xl text-white hover:text-blue-400 transition">
+                <i class="bi bi-arrow-right-circle-fill"></i>
+            </button>
+        </div>
+
+        <div class="mt-4 text-center">
+            <button id="startBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-full transition">
+                Start Game
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('gameContainer');
+        const player = document.getElementById('player');
+        const startBtn = document.getElementById('startBtn');
+        const scoreElement = document.getElementById('score');
+        const leftBtn = document.getElementById('leftBtn');
+        const rightBtn = document.getElementById('rightBtn');
+
+        let playerPos = gameContainer.offsetWidth / 2 - 25;
+        let score = 0;
+        let isGameRunning = false;
+        let animationId;
+        let obstacles = [];
+        let roadLines = [];
+        let gameSpeed = 5;
+
+        player.style.left = `${playerPos}px`;
+
+        function createRoadLine() {
+            const line = document.createElement('div');
+            line.className = 'road-line';
+            line.style.top = '-60px';
+            gameContainer.appendChild(line);
+            roadLines.push(line);
+        }
+
+        function moveRoadLines() {
+            roadLines.forEach((line, index) => {
+                const top = parseFloat(line.style.top);
+                if (top >= gameContainer.offsetHeight) {
+                    line.remove();
+                    roadLines.splice(index, 1);
+                } else {
+                    line.style.top = `${top + gameSpeed}px`;
+                }
+            });
+        }
+
+        function createObstacle() {
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            obstacle.style.left = `${Math.random() * (gameContainer.offsetWidth - 50)}px`;
+            obstacle.style.top = '-80px';
+            gameContainer.appendChild(obstacle);
+            obstacles.push(obstacle);
+        }
+
+        function moveObstacles() {
+            obstacles.forEach((obstacle, index) => {
+                const top = parseFloat(obstacle.style.top);
+                if (top >= gameContainer.offsetHeight) {
+                    obstacle.remove();
+                    obstacles.splice(index, 1);
+                    score++;
+                    scoreElement.textContent = score;
+                } else {
+                    obstacle.style.top = `${top + gameSpeed}px`;
+                    checkCollision(obstacle);
+                }
+            });
+        }
+
+        function checkCollision(obstacle) {
+            const playerRect = player.getBoundingClientRect();
+            const obstacleRect = obstacle.getBoundingClientRect();
+
+            if (
+                playerRect.left < obstacleRect.right &&
+                playerRect.right > obstacleRect.left &&
+                playerRect.top < obstacleRect.bottom &&
+                playerRect.bottom > obstacleRect.top
+            ) {
+                gameOver();
+            }
+        }
+
+        function gameOver() {
+            isGameRunning = false;
+            cancelAnimationFrame(animationId);
+            startBtn.textContent = 'Play Again';
+            alert(`Game Over! Score: ${score}`);
+        }
+
+        function gameLoop() {
+            if (!isGameRunning) return;
+
+            if (Math.random() < 0.02) createObstacle();
+            if (Math.random() < 0.1) createRoadLine();
+
+            moveObstacles();
+            moveRoadLines();
+            animationId = requestAnimationFrame(gameLoop);
+        }
+
+        function movePlayer(direction) {
+            if (!isGameRunning) return;
+            const moveAmount = 20;
+            const newPos = direction === 'left' 
+                ? Math.max(0, playerPos - moveAmount)
+                : Math.min(gameContainer.offsetWidth - 50, playerPos + moveAmount);
+            playerPos = newPos;
+            player.style.left = `${playerPos}px`;
+        }
+
+        // Touch and click controls
+        leftBtn.addEventListener('mousedown', () => movePlayer('left'));
+        rightBtn.addEventListener('mousedown', () => movePlayer('right'));
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') movePlayer('left');
+            if (e.key === 'ArrowRight') movePlayer('right');
+        });
+
+        startBtn.addEventListener('click', () => {
+            obstacles.forEach(obs => obs.remove());
+            roadLines.forEach(line => line.remove());
+            obstacles = [];
+            roadLines = [];
+            score = 0;
+            scoreElement.textContent = score;
+            playerPos = gameContainer.offsetWidth / 2 - 25;
+            player.style.left = `${playerPos}px`;
+            isGameRunning = true;
+            gameLoop();
+        });
+
+        // Mobile touch events
+        let touchStartX = null;
+
+        gameContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        });
+
+        gameContainer.addEventListener('touchmove', (e) => {
+            if (!touchStartX) return;
+            
+            const touchX = e.touches[0].clientX;
+            const diff = touchX - touchStartX;
+            
+            if (diff > 10) movePlayer('right');
+            if (diff < -10) movePlayer('left');
+            
+            touchStartX = touchX;
+        });
+
+        gameContainer.addEventListener('touchend', () => {
+            touchStartX = null;
+        });
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
